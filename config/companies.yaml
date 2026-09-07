@@ -1,0 +1,59 @@
+# Target companies to monitor.
+#
+# Fill this in properly using the discover helper (Phase 0):
+#   poetry run python -m job_radar.discover urls.txt
+# then verify each result by hand before trusting it — see README.
+#
+# Fields:
+#   name       - display name used in alerts
+#   ats        - greenhouse | personio | lever
+#   identifier - the ATS-specific id (see below)
+#   region     - optional, see below
+#   enabled    - true/false. Keep new/unverified entries disabled until checked.
+#
+# identifier meaning per ats:
+#   greenhouse -> board token: the path segment in boards.greenhouse.io/<token>
+#   personio   -> subdomain: the part before .jobs.personio.de
+#   lever      -> site slug: the path segment in jobs.lever.co/<slug>
+#
+# region meaning per ats:
+#   personio -> "de" (default) or "com" — some tenants use .com instead of .de
+#   lever    -> "eu" if the company's Lever board is EU-hosted, otherwise omit
+
+companies:
+  # --- Verified example so you have something working out of the box.
+  #     Wandelbots is a real German robotics company on Personio.
+  #     Double-check it still resolves before relying on it (ATS migrations happen). ---
+  - name: "Wandelbots"
+    ats: personio
+    identifier: wandelbots
+    region: de
+    enabled: true
+
+  # --- PLACEHOLDERS ONLY — these ATS/identifier values are NOT verified.
+  #     Run discover.py against each company's real careers URL and replace
+  #     these before enabling them. Left disabled on purpose. ---
+  - name: "NEURA Robotics"
+    ats: personio
+    identifier: CHANGE_ME
+    enabled: false
+
+  - name: "KUKA"
+    ats: greenhouse
+    identifier: CHANGE_ME
+    enabled: false
+
+  - name: "Franka Robotics"
+    ats: personio
+    identifier: CHANGE_ME
+    enabled: false
+
+  - name: "Agile Robots"
+    ats: greenhouse
+    identifier: CHANGE_ME
+    enabled: false
+
+  - name: "ANYbotics"
+    ats: lever
+    identifier: CHANGE_ME
+    enabled: false

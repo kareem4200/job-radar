@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "job-radar"
+version = "0.1.0"
+description = "Personal job-posting radar: polls company ATS boards directly (Greenhouse, Personio, Lever) and pushes Telegram alerts for new matching roles, instead of waiting on LinkedIn's daily/weekly digest."
+authors = ["Karem Mohamed <kareemmagdy420@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "job_radar" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "^2.32"
+PyYAML = "^6.0"
+python-dotenv = "^1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+
+[tool.poetry.scripts]
+job-radar = "job_radar.main:main"
+job-radar-discover = "job_radar.discover:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

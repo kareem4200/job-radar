@@ -1,0 +1,38 @@
+# Keyword lists used by job_radar/filters.py.
+#
+# Matching is case-insensitive substring matching against "<title> <department>".
+# This is deliberately simple keyword matching, not ML — you can see exactly
+# why a job scored the way it did, and tune it in two minutes.
+#
+# Scoring: high_value = +20, medium_value = +8, exclude = -40 (see filters.py).
+
+high_value:
+  - robotics
+  - robotik
+  - ros2
+  - ros 2
+  - autonomous systems
+  - motion planning
+  - slam
+  - perception engineer
+  - computer vision
+  - controls engineer
+  - embedded robotics
+
+medium_value:
+  - c++
+  - python
+  - opencv
+  - pytorch
+  - mechatronics
+  - automatisierung
+  - regelungstechnik
+  - embedded
+
+exclude:
+  - senior staff
+  - principal engineer
+  - director
+  - head of
+  - 10+ years
+  - internship # remove this line if you also want internships
