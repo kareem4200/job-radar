@@ -28,6 +28,9 @@ medium_value:
   - automatisierung
   - regelungstechnik
   - embedded
+  - camera        
+  - sensor fusion 
+  - firmware      
 
 exclude:
   - senior staff
