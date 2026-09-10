@@ -17,13 +17,12 @@ def run() -> int:
     # currently-open job would otherwise look "new" and you'd get flooded
     # with alerts for postings that have been up for months. So we record
     # everything as seen but suppress alerts for this run only.
-    is_baseline_run = not storage.has_any_seen()
-    if is_baseline_run:
-        print(
-            "[job-radar] No history found - this is a baseline run. "
-            "All currently open jobs will be recorded but NOT alerted on. "
-            "Future runs will only alert on jobs that are new since this baseline."
-        )
+    # if is_baseline_run:
+    #     print(
+    #         "[job-radar] No history found - this is a baseline run. "
+    #         "All currently open jobs will be recorded but NOT alerted on. "
+    #         "Future runs will only alert on jobs that are new since this baseline."
+    #     )
 
     new_count = 0
     alert_count = 0
@@ -43,6 +42,8 @@ def run() -> int:
         except Exception as exc:  # one company's failure should never kill the whole run
             errors.append(f"{company.name} ({company.ats}): {exc}")
             continue
+        
+        is_baseline_for_company = not storage.has_any_seen_for_company(company.name)
 
         for job in jobs:
             if not storage.is_new(job.fingerprint):
@@ -51,7 +52,7 @@ def run() -> int:
             storage.mark_seen(job, now)
             new_count += 1
 
-            if is_baseline_run:
+            if is_baseline_for_company:
                 continue
 
             score, matched = score_job(job, keywords)

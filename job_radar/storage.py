@@ -32,6 +32,17 @@ def has_any_seen() -> bool:
         return cur.fetchone() is not None
     finally:
         conn.close()
+        
+def has_any_seen_for_company(company: str) -> bool:
+    """True if THIS company has history. Used to baseline newly-enabled
+    companies individually, so enabling 20 new companies at once doesn't
+    alert on every currently-open role at all of them simultaneously."""
+    conn = _connect()
+    try:
+        cur = conn.execute("SELECT 1 FROM seen_jobs WHERE company = ? LIMIT 1", (company,))
+        return cur.fetchone() is not None
+    finally:
+        conn.close()
 
 
 def is_new(fingerprint: str) -> bool:
