@@ -191,6 +191,15 @@ exclude:
   - tech lead
   - "stud."
 
+  # --- French-language postings (Airbus' board is France-heavy) ---
+  # "Spécialiste en Ingénierie, Systèmes de Contrôle de vol" alerted at 20:
+  # a flight-control role, not robotics. Airbus publishes no usable location
+  # for these, so match the language instead.
+  - spécialiste
+  - ingénieur
+  - développement
+  - systèmes
+
   # --- Placeholder / speculative postings, not real vacancies ---
   # These are permanent "send us your CV" entries. They score well because
   # the description is the company's general robotics pitch - sewts' "Future
@@ -248,6 +257,14 @@ location_exclude:
   - ", kr"
   - seoul
   - ", fr)"
+  - ", cz"                 # Praha, CZ
+  - ", lt"                 # Kaunas, LT
+  - ", lv"
+  - ", ee"
+  - ", pt"
+  - ", at"
+  - kaunas
+  - praha
   - india
   - bangalore
   - pune

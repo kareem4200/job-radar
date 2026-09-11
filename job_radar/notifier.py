@@ -1,3 +1,5 @@
+import html
+
 import requests
 
 from job_radar.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
@@ -22,16 +24,28 @@ def send_telegram_message(text: str) -> None:
         timeout=15,
     )
     if not resp.ok:
-        print(f"[notifier] Telegram send failed: {resp.status_code} {resp.text}")
+        # Printed, not raised: one bad message must not abort the whole run.
+        # Watch for this line in the Actions log - a 400 here means the
+        # message body was malformed, a 401/404 means bad token/chat id.
+        print(f"[notifier] Telegram send FAILED: {resp.status_code} {resp.text}")
 
 
 def format_job_alert(job: RawJob, score: int, matched: list[str]) -> str:
+    """Build the Telegram message.
+
+    Everything interpolated MUST be HTML-escaped: we send with
+    parse_mode=HTML, and Telegram rejects the whole message with
+    400 "can't parse entities" if a bare &, < or > appears outside a tag.
+    German robotics titles are full of ampersands - "Robotik &
+    Automatisierung", "Vision & Perception", "Data & Cloud" - so without
+    escaping, a large share of alerts would silently fail to send.
+    """
     matched_str = ", ".join(matched) if matched else "-"
     return (
-        f"🚨 <b>New job — {job.company}</b>\n"
-        f"<b>{job.title}</b>\n"
-        f"📍 {job.location or 'n/a'}\n"
-        f"Score: {score} | Matched: {matched_str}\n"
-        f"Source: {job.source}\n"
+        f"🚨 <b>New job — {html.escape(job.company)}</b>\n"
+        f"<b>{html.escape(job.title)}</b>\n"
+        f"📍 {html.escape(job.location or 'n/a')}\n"
+        f"Score: {score} | Matched: {html.escape(matched_str)}\n"
+        f"Source: {html.escape(job.source)}\n"
         f"{job.url}"
     )

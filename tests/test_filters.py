@@ -67,3 +67,44 @@ def test_strip_html_removes_tags():
 def test_no_match_scores_zero():
     score, matched = score_job(make_job("Accounts Payable Clerk"), KW)
     assert score == 0 and matched == []
+
+
+def test_medium_only_job_cannot_alert():
+    """RULE 3: no robotics keyword anywhere = not a robotics job.
+
+    Four medium keywords stacked to 22 and alerted a data-analysis role
+    once the threshold moved to 20.
+    """
+    kw = {"high_value": ["robot"], "medium_value": ["c++", "python", "simulation", "embedded"],
+          "exclude": []}
+    job = make_job("Softwareentwickler Datenanalyse",
+                   description="c++ python simulation embedded")
+    score, _ = score_job(job, kw)
+    assert score <= 12
+
+
+def test_location_exclude_matches_title_not_just_location_field():
+    """SuccessFactors publishes no location field - the city is in the title."""
+    kw = {"high_value": ["robot"], "medium_value": [], "exclude": [],
+          "location_exclude": [", us"]}
+    job = make_job("Software Engineer II (Canton, MA, US, 02021)",
+                   description="robot")
+    score, matched = score_job(job, kw)
+    assert score == HARD_REJECT
+    assert matched == ["@, us"]
+
+
+def test_telegram_message_escapes_html():
+    """Telegram rejects the whole message on a bare & in parse_mode=HTML.
+
+    German robotics titles are full of them ("Robotik & Automatisierung"),
+    so an unescaped title meant those alerts silently 400'd.
+    """
+    from job_radar.notifier import format_job_alert
+
+    job = make_job("Robotics Vision & Perception <Engineer>")
+    msg = format_job_alert(job, 50, ["robot & vision"])
+    assert "&amp;" in msg
+    assert "&lt;Engineer&gt;" in msg
+    # our own formatting tags must survive
+    assert "<b>" in msg

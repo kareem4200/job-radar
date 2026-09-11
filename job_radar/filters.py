@@ -31,6 +31,9 @@ LONE_DESC_HIGH = 3
 # Returned when an exclude term appears in the title - see RULE 1.
 HARD_REJECT = -999
 
+# Ceiling for jobs matching only medium_value keywords - see RULE 3.
+MEDIUM_ONLY_CAP = 12
+
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 
@@ -122,5 +125,14 @@ def score_job(job: RawJob, keywords: dict) -> tuple[int, list[str]]:
     if not high_title and len(high_desc) == 1:
         score -= HIGH_DESC - LONE_DESC_HIGH
         matched = [m.replace(f"{high_desc[0]}~", f"{high_desc[0]}~(lone)") for m in matched]
+
+    # RULE 3 - a job with NO high-value keyword anywhere can never alert.
+    # medium_value terms (c++, python, simulation, embedded...) describe how
+    # a job is done, not what it is about. Four of them stacking to 22 got
+    # a data-analysis role through. Cap such jobs just below any sane
+    # threshold rather than zeroing them, so they still sort sensibly in
+    # `healthcheck --sample` output.
+    if not high_title and not high_desc:
+        score = min(score, MEDIUM_ONLY_CAP)
 
     return score, matched
