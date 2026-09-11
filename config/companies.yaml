@@ -1,59 +1,706 @@
 # Target companies to monitor.
 #
-# Fill this in properly using the discover helper (Phase 0):
-#   poetry run python -m job_radar.discover urls.txt
-# then verify each result by hand before trusting it — see README.
-#
 # Fields:
 #   name       - display name used in alerts
-#   ats        - greenhouse | personio | lever
-#   identifier - the ATS-specific id (see below)
-#   region     - optional, see below
-#   enabled    - true/false. Keep new/unverified entries disabled until checked.
+#   ats        - greenhouse | personio | lever | ashby | teamtailor
+#                | unsupported | unverified
+#   identifier - the ATS-specific id, or TODO
+#   region     - optional: personio -> de|com, lever -> eu, greenhouse -> eu
+#   enabled    - true/false
 #
 # identifier meaning per ats:
-#   greenhouse -> board token: the path segment in boards.greenhouse.io/<token>
-#   personio   -> subdomain: the part before .jobs.personio.de
-#   lever      -> site slug: the path segment in jobs.lever.co/<slug>
+#   greenhouse -> board token in boards.greenhouse.io/<token>
+#                 (region: eu if the board is on *.eu.greenhouse.io)
+#   personio   -> subdomain before .jobs.personio.de (region: de or com)
+#   lever      -> slug in jobs.lever.co/<slug>
+#   ashby      -> board name in jobs.ashbyhq.com/<name>
+#   teamtailor -> FULL careers-site base URL, e.g. https://careers.acme.com
+#                 (Teamtailor tenants use custom domains, so a slug won't do)
 #
-# region meaning per ats:
-#   personio -> "de" (default) or "com" — some tenants use .com instead of .de
-#   lever    -> "eu" if the company's Lever board is EU-hosted, otherwise omit
+# SECTIONS, ordered by what you actually DO with each:
+#   1. MONITORED       - verified + polled automatically. Nothing to do.
+#   2. EMAIL / FORM    - no ATS exists. Apply by email or a form on the
+#                        company's own site. Check monthly; these hire rarely
+#                        and informally.
+#   3. UNSUPPORTED ATS - a real job board, but auth-walled (join.com,
+#                        softgarden). >>> CHECK WEEKLY <<<. They post jobs
+#                        normally; we just can't poll them. This is your
+#                        real blind spot and the top changedetection.io target.
+#   4. BIG CORPORATES  - Workday / SuccessFactors / custom. Don't hand-check;
+#                        use each company's own job alert instead.
+#   5. STILL UNKNOWN   - not yet identified. Open the URL, click a job, hit
+#                        Apply, read the domain.
+#   6. NO ROUTE FOUND  - no careers page, no ATS, no email. Possibly dormant
+#                        or defunct. Delete if you confirm they're gone.
+#   7. OUT OF SCOPE    - not German. Kept so you don't re-research them.
+
 
 companies:
-  # --- Verified example so you have something working out of the box.
-  #     Wandelbots is a real German robotics company on Personio.
-  #     Double-check it still resolves before relying on it (ATS migrations happen). ---
+
+  # ============================================================
+  # 1. MONITORED - verified and polled automatically
+  # ============================================================
+
   - name: "Wandelbots"
     ats: personio
     identifier: wandelbots
     region: de
     enabled: true
+    # Dresden - robot-agnostic OS, ROS-adjacent.
 
-  # --- PLACEHOLDERS ONLY — these ATS/identifier values are NOT verified.
-  #     Run discover.py against each company's real careers URL and replace
-  #     these before enabling them. Left disabled on purpose. ---
-  - name: "NEURA Robotics"
+  - name: "Filics"
     ats: personio
-    identifier: CHANGE_ME
-    enabled: false
+    identifier: filics
+    region: de
+    enabled: true
+    # Munich - autonomous mobile robots, intralogistics.
 
-  - name: "KUKA"
-    ats: greenhouse
-    identifier: CHANGE_ME
-    enabled: false
+  - name: "Magazino"
+    ats: personio
+    identifier: magazino
+    region: de
+    enabled: true
+    # Munich - warehouse robots, strong perception focus.
+
+  - name: "Unchained Robotics"
+    ats: personio
+    identifier: unchained-robotics-gmbh
+    region: de
+    enabled: true
+    # Paderborn - robotics marketplace/integrator.
+
+  - name: "fruitcore robotics"
+    ats: personio
+    identifier: fruitcore-robotics-gmbh
+    region: de
+    enabled: true
+    # Konstanz - HORST robot arms + Physical AI platform.
+
+  - name: "cellumation"
+    ats: personio
+    identifier: cellumation
+    region: de
+    enabled: true
+    # Bremen - celluveyor modular material flow.
+
+  - name: "NODE Robotics"
+    ats: personio
+    identifier: node-robotics-gmbh
+    enabled: true
+    # AMR software for intralogistics.
+    # NOTE: region unconfirmed. If this 404s, try region: com.
+
+  - name: "Gestalt Robotics"
+    ats: personio
+    identifier: gestalt-robotics
+    region: com
+    enabled: true
+    # Berlin - industrial automation + AI, SLAM/CV work.
+    # Board EMPTY when checked (Sept 2026) - expect silence, not alerts.
+    # Insolvency 2023/24, acquired by INDUS Holding AG Mar 2024. Hiring may
+    # migrate to INDUS systems - recheck if permanently quiet.
+
+  - name: "Synapticon"
+    ats: personio
+    identifier: synapticon
+    region: com
+    enabled: true
+    # Schoenaich nr Stuttgart, ~85 people - servo drives/motion control.
+    # Safety architecture for humanoid robots. Strong fit for your profile.
+
+  - name: "German Bionic"
+    ats: personio
+    identifier: german-bionic
+    region: de
+    enabled: true
+    # Augsburg - connected industrial exoskeletons / wearable robotics.
+    # Board EMPTY when checked - empty <workzag-jobs/> confirms the id is
+    # right, they just aren't hiring right now.
+
+  - name: "Robotise"
+    ats: personio
+    identifier: robotise
+    region: de
+    enabled: true
+    # Munich - service robots (JEEVES hotel/service robot).
+    # Board EMPTY. Also takes speculative applications: careers@robotise.eu
+    # (Kerstin Goldschmidt).
+    # NOTE: an older board exists at robotise-jobs.personio.de (hyphen, not
+    # dot) under 'Robotise GmbH' vs 'Robotise Technologies GmbH'. Both empty.
+
+  - name: "Daedalus"
+    ats: personio
+    identifier: daedalus
+    region: de
+    enabled: true
+    # Munich - AI-driven precision manufacturing (CNC), software-defined
+    # factories. $40M from Khosla, Addition, NGP, Y Combinator. Team ex-
+    # OpenAI,
+    # Google, SpaceX.
+    # Personio board EMPTY, but their join.com page says they're hiring -
+    # >>> also check join.com/companies/daedalus weekly until one wins.
+
+  - name: "sewts"
+    ats: personio
+    identifier: sewts
+    region: de
+    enabled: true
+    # Garching/Munich - TUM spinoff, AI robots for textile handling.
+    # Deformable-object manipulation is a genuinely hard robot-learning
+    # problem - good fit for your interests.
+
+  - name: "Hive Robotics"
+    ats: personio
+    identifier: hive-robotics
+    region: com
+    enabled: true
+    # Munich - pre-seed. Note region is .com, not .de.
 
   - name: "Franka Robotics"
     ats: personio
-    identifier: CHANGE_ME
-    enabled: false
+    identifier: franka-robotics
+    region: de
+    enabled: true
+    # Munich - Panda/FR3 arm maker (ex-Franka Emika, restructured 2024).
+    # Their arms are a de-facto standard in academic robot-learning labs.
+
+  - name: "Blickfeld"
+    ats: personio
+    identifier: blickfeld
+    region: de
+    enabled: true
+    # Munich - DLR spinoff, compact LiDAR for autonomous driving/robotics.
+    # Their site shows a CUSTOM form, but it's fed by Personio: the
+    # ?job-id=NNNNNNN param on blickfeld.com/de/kontakt/bewerbung/ is a
+    # Personio job id. Confirmed board: blickfeld.jobs.personio.de
+    # Also on join.com/companies/blickfeld + career@blickfeld.com.
+    # Ignore the old blickfeld-jobs.personio.de (hyphen) - it now 302s to
+    # login.
+
+  - name: "Sereact"
+    ats: ashby
+    identifier: sereact
+    enabled: true
+    # Stuttgart - VLAM foundation model for bin-picking. Hires ROS2
+    # roboticists.
+    # One of the best matches on this list for robot-learning interest.
+
+  - name: "RobCo"
+    ats: ashby
+    identifier: robco
+    enabled: true
+    # Munich - modular industrial robots for SMEs.
+
+  - name: "NEURA Robotics"
+    ats: ashby
+    identifier: neura-robotics-gmbh
+    enabled: true
+    # Metzingen - cognitive/humanoid robots (MAiRA, 4NE-1).
+    # Careers page is white-labeled at jobs.neura-robotics.com; real ATS is
+    # Ashby.
+
+  - name: "Navflex"
+    ats: ashby
+    identifier: navflex
+    enabled: true
+    # Autonomous forklift AMRs for warehouses/docks.
+    # Was hiring functional-safety + test engineers.
+
+  - name: "Apex.AI"
+    ats: lever
+    identifier: apex-ai
+    enabled: true
+    # Stuttgart/Munich/Berlin - safety-certified ROS2 middleware (Apex.Grace).
+    # If ROS2 specifically is your thing, the single best target here.
+    # NOTE: slug + region unconfirmed. If this 404s, try region: eu.
+
+  - name: "Helsing"
+    ats: greenhouse
+    identifier: helsing
+    region: eu
+    enabled: true
+    # Munich, ~900 people - defence AI, strike drones, underwater
+    # surveillance.
+    # EU Greenhouse board (boards.eu.greenhouse.io/helsing).
+    # Defence/dual-use - drop if that's outside what you want.
+
+  - name: "ARX Robotics"
+    ats: greenhouse
+    identifier: arxroboticsgmbh
+    region: eu
+    enabled: true
+    # Munich - autonomous UGVs for defence/first responders. Bundeswehr-Uni
+    # spinoff. EU Greenhouse (job-boards.eu.greenhouse.io/arxroboticsgmbh).
+    # Defence/dual-use - same caveat as Helsing.
 
   - name: "Agile Robots"
     ats: greenhouse
-    identifier: CHANGE_ME
+    identifier: agilerobotsse
+    region: eu
+    enabled: true
+    # Munich/Gilching - DLR spinoff, robot arms/systems, 2300+ employees.
+    # EU Greenhouse (job-boards.eu.greenhouse.io/agilerobotsse).
+    # Identifier is the legal name 'Agile Robots SE' run together, no hyphens.
+
+  - name: "Korial (Energy Robotics)"
+    ats: teamtailor
+    identifier: https://careers.korial.com
+    enabled: true
+    # Darmstadt, ~100 people - TU Darmstadt spinoff. Autonomous inspection
+    # robots + AI platform orchestrating mixed robot/drone fleets.
+    # RENAMED: formerly Energy Robotics. Legal entity is still
+    # 'Energy Robotics GmbH / Korial'.
+    # Teamtailor identifier is the FULL careers-site base URL, not a slug.
+    # >>> Was hiring Robot Software Engineer + Computer Vision & AI Engineer
+    # (Darmstadt, remote within CET +/-2h). Strong fit - apply directly.
+
+  # ============================================================
+  # 2. EMAIL / CUSTOM FORM - no ATS exists, nothing to poll.
+  #    Apply by email or via a form on the company's own site.
+  #    Check MONTHLY; these hire rarely and informally.
+  # ============================================================
+
+  - name: "microagi"
+    ats: unsupported
+    identifier: TODO
     enabled: false
+    # APPLY BY EMAIL: hiring@micro-agi.com
+    # https://www.microagi.ai/careers/
+    # (note: email domain is micro-agi.com, website is microagi.ai)
+    # Munich - seed-stage robot-learning startup. Custom form + email, no ATS.
+    # >>> Was advertising 'Forward Deployed Researcher - Robot Learning'.
+    # About the best-matching title on this entire list. Apply directly.
+
+  - name: "Athenyx Robotics"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY BY EMAIL: careers@athenyxrobotics.com
+    # https://athenyxrobotics.com/careers
+    # Aachen/Landshut - 2026 RWTH Aachen (WZL) spinoff. Physical AI platform
+    # for industrial robots; BMW humanoid partnership at their Landshut plant.
+    # >>> Hiring its FIRST employees. As early as you can possibly catch a
+    # company. Apply directly - don't wait for a board.
+
+  - name: "KEWAZO"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY BY EMAIL: jobs@kewazo.com
+    # https://www.kewazo.com
+    # Munich/Bavaria - construction-site robotics (robotic scaffolding lifts).
+
+  - name: "Roboception"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY BY EMAIL: info@roboception.com
+    # https://roboception.com
+    # Munich - DLR spinoff, 3D vision/perception for robots.
+    # ROS integration is core to their product.
+
+  - name: "WAKU Robotics"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY BY EMAIL: alex@waku-robotics.com
+    # https://www.waku-robotics.com
+    # Berlin - AGV/AMR fleet management software.
+
+  - name: "Swarm Logistics"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY BY EMAIL: info@swarmlogistics.net
+    # https://swarmlogistics.de
+    # Stuttgart - AI fleet-control for logistics robots.
+
+  - name: "Lemvos"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY BY EMAIL: info@lemvos.com
+    # https://lemvos.com
+    # Augsburg, ~5 people - marine robotics / unmanned surface vessels.
+    # Was advertising a Robotics Software Engineer role (mobile robotics +
+    # embedded) on StepStone.
+
+  - name: "AI.Land"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY BY EMAIL: info@a-i.land
+    # https://www.a-i.land
+    # Agricultural robotics/automation.
+
+  - name: "Innok Robotics"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY BY EMAIL (confirmed - no ATS)
+    # https://www.innok-robotics.de/en/career/
+    # Regenstauf - mobile/assistive outdoor robots.
+    # Site runs on HubSpot CMS (?hsLang= param) - a website builder, not an
+    # ATS.
+    # Was advertising 'Senior Softwareentwickler Mobile Roboter'.
+
+  - name: "Mana Robotics"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY BY EMAIL - speculative/unsolicited
+    # Dresden, ~5 people - autonomous cooking robots (Mana MicroCanteen).
+    # Hiring per their own LinkedIn. No domain confirmed in research.
+
+  - name: "NEOintralogistics"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY BY EMAIL - speculative/unsolicited
+    # Duesseldorf - intralogistics.
+
+  - name: "Versatile Robotics"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY BY EMAIL (manual - no ATS)
+    # DLR spinoff - controller software for safe, precise, fast human-robot
+    # collaboration.
+
+  - name: "Kinetik Space"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # MANUAL MONITORING - no ATS found
+    # DLR spinoff - space robotic manipulation: arms, end effectors, docking,
+    # motor drive units for spacecraft. About as niche as German robotics
+    # gets.
+
+  - name: "Neurospace"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # MANUAL MONITORING + email - no ATS found
+    # https://neuro-space.de
+    # Berlin - modular robotics for terrestrial/lunar/deep-space missions.
+    # Contributed rover electronics to NASA's Artemis II.
+
+  - name: "Swarm Biotactics"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # MONITOR ON LINKEDIN - no ATS found
+    # Kassel - biotactic sensing, defence-adjacent.
+
+  - name: "Bearcover"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # APPLY MANUALLY - minimalist site, no ATS
+    # https://www.bearcover.de
+    # Berlin - domestic/home robots (radar-based monitoring).
+
+  - name: "Evitado Technologies"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # MANUAL MONITORING - no ATS found
+    # https://evitado.io
+    # Airport-operations automation, collision avoidance systems.
+
+  - name: "Skysense"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # CUSTOM FORM on own domain, no ATS
+    # https://www.skycharge.de/careers
+    # Drone charging infrastructure (BVLOS operations).
+
+  - name: "Eternal"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # CUSTOM FORM on own domain, no ATS
+    # https://eternal.ag/en/about/jobs/
+    # Cologne. (The 7-digit job id resembled Teamtailor's but is their own
+    # numbering - not a white-labeled board.)
+
+  - name: "Sitegeist"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # NO ATS - listings hosted on NOTION
+    # https://sitegeist-robotics.com/career/
+    # Notion board: dull-indigo-417.notion.site (confirmed theirs).
+    # Notion has no jobs API, so manual monitoring only.
+    # Construction-tech robotics.
+
+  # ============================================================
+  # 3. UNSUPPORTED ATS - a real job board we cannot poll.
+  #    >>> CHECK THESE WEEKLY BY HAND. <<<
+  #    They post jobs normally; the API is just auth-walled.
+  #    Top changedetection.io candidates for Phase 2.
+  # ============================================================
+
+  - name: "robominds"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # >>> CHECK WEEKLY: https://join.com/companies/robominds
+    # Platform: join.com (no public read API for third parties)
+    # Munich - robot intelligence software (robobrain).
+
+  - name: "tacterion"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # >>> CHECK WEEKLY: https://join.com/companies/tacterion
+    # Platform: join.com (no public read API for third parties)
+    # Munich, 11-50 people - tactile/flexible sensors (plyon), DLR spinoff.
+    # Explicitly lists robotics + cobots as specialities.
+
+  - name: "FENKA Robotics"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # >>> CHECK WEEKLY: https://join.com/companies/fenka
+    # Platform: join.com (no public read API for third parties)
+    # Graefelfing (Munich area). Domain resolved via their join.com board.
+
+  - name: "4am Robotics / Mojin Robotics"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # >>> CHECK WEEKLY: https://4am-robotics.softgarden.io
+    # Platform: softgarden (no public read API for third parties)
+    # Service/mobile robotics for everyday environments.
+
+  # ============================================================
+  # 4. BIG CORPORATES - Workday / SAP SuccessFactors / custom.
+  #    Don't hand-check these. Set up each company's OWN job alert
+  #    instead - they nearly all offer one, and they hire continuously
+  #    so the LinkedIn-lag problem matters much less.
+  # ============================================================
+
+  - name: "KUKA"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.kuka.com/en-de/company/careers/vacancies
+    # Augsburg - the big one.
+
+  - name: "Bosch Rexroth"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.boschrexroth.com/en/de/jobs-and-career/
+    # Lohr am Main - drives/controls.
+
+  - name: "Festo"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.festo.com
+    # Esslingen - pneumatics/electric automation.
+
+  - name: "Siemens"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.siemens.com
+    # Munich/Berlin - Digital Industries.
+
+  - name: "TRUMPF"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.trumpf.com
+    # Ditzingen - machine tools, laser.
+
+  - name: "SCHUNK"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://schunk.com
+    # Lauffen - grippers/end-effectors.
+
+  - name: "WITTENSTEIN"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.wittenstein.de
+    # Igersheim - precision drives.
+
+  - name: "Pilz"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.pilz.com
+    # Ostfildern - safety automation.
+
+  - name: "Beckhoff"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.beckhoff.com
+    # Verl - PC-based automation.
+
+  - name: "igus"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.igus.de
+    # Cologne - motion plastics, low-cost robotics.
+
+  - name: "SICK AG"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.sick.com
+    # Waldkirch - sensors/LiDAR.
+
+  - name: "ZF Friedrichshafen"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.zf.com
+    # Drivetrain + autonomous mobility.
+
+  - name: "Continental"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.continental.com
+    # Automotive incl. autonomous mobility.
+
+  - name: "Schaeffler"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.schaeffler.com
+    # Motion technology.
+
+  - name: "Airbus"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.airbus.com
+    # Aerospace, autonomy R&D.
+
+  - name: "PIA Automation"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.piagroup.com
+    # Automation systems group, Industry 4.0.
+
+  - name: "KEBA"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.keba.com/en/corporate/career/job-openings
+    # Linz, AUSTRIA (not Germany) - 2,100 people, industrial/banking/energy
+    # automation. Has a Keba Deutschland GmbH subsidiary. Custom in-house
+    # system (keba.com/.../details?job=NNNN).
+
+  - name: "DLR"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.dlr.de/en/careers
+    # Research institute, not a company. Parent of Roboception, Agile Robots,
+    # tacterion, Blickfeld, Kinetik Space, Versatile Robotics + more here.
+
+  - name: "Fraunhofer IPA"
+    ats: unsupported
+    identifier: TODO
+    enabled: false
+    # https://www.ipa.fraunhofer.de/en/career.html
+    # Stuttgart - applied robotics/automation research institute.
+
+  # ============================================================
+  # 5. STILL UNKNOWN - ATS not yet identified.
+  #    Open the URL, click into a job, hit Apply, read the domain:
+  #      *.jobs.personio.de/com -> personio, identifier = subdomain
+  #      boards.greenhouse.io/X -> greenhouse, identifier = X
+  #      *.eu.greenhouse.io/X   -> greenhouse, identifier = X, region: eu
+  #      jobs.lever.co/X        -> lever, identifier = X
+  #      jobs.ashbyhq.com/X     -> ashby, identifier = X
+  #      <base>/jobs.rss = XML  -> teamtailor, identifier = full base URL
+  #      join.com / softgarden  -> section 3
+  #      mailto: or a form      -> section 2
+  # 
+  #    Tips learned the hard way:
+  #     - German firms often register the LEGAL name: try {brand}-gmbh
+  #       (NEURA, Unchained, fruitcore) or the SE form run together
+  #       (agilerobotsse) before giving up.
+  #     - A custom-looking careers domain does NOT mean no ATS. NEURA
+  #       white-labels Ashby; Blickfeld's own form is fed by Personio.
+  #       Always click through to Apply.
+  #     - ?ashby_jid= on a company's own domain = Ashby embed.
+  #     - A 7-digit ?job-id= in the 2.6-2.8M range = Personio. Try
+  #       {brand}.jobs.personio.de even if the site looks custom.
+  #     - 'Powered by Personio' but no useful URL = iframe embed; use
+  #       DevTools Network tab, filter 'personio', to see the real host.
+  # ============================================================
+
+  - name: "Micropsi Industries"
+    ats: unverified
+    identifier: TODO
+    enabled: false
+    # https://www.micropsi-industries.com
+    # Berlin - MIRAI: ML robot control that learns from human demonstration.
+    # NOTE: reincorporated as a US company (SF HQ) in 2024; Berlin is now the
+    # R&D subsidiary. Still relevant, but check roles are actually DE-based.
+    # >>> Not yet checked. Click Apply on a role to identify the ATS.
+
+  - name: "Vemcon"
+    ats: unverified
+    identifier: TODO
+    enabled: false
+    # https://www.vemcon.de/karriere/
+    # Munich - control systems for heavy/work machinery.
+    # Careers page EMPTY and no ATS found in search. Probably hand-listed.
+    # Recheck only if you see them hiring elsewhere.
+
+  # ============================================================
+  # 6. NO ROUTE FOUND - no careers page, no ATS, no email.
+  #    Possibly dormant or defunct. Delete once confirmed.
+  # ============================================================
+
+  - name: "Vathos Robotics"
+    ats: unverified
+    identifier: TODO
+    enabled: false
+    # https://vathos-robotics.com
+    # Duesseldorf - computer vision/ML for factory robotics.
+    # NO careers page and NO contact email found. No way to apply or monitor.
+    # Check LinkedIn, or delete.
+
+  - name: "Reactive Robotics"
+    ats: unverified
+    identifier: TODO
+    enabled: false
+    # https://www.reactive-robotics.com
+    # Munich - ICU patient-mobilization robotics.
+    # NO working website, NO careers page, NO email found.
+    # Possibly dormant or defunct - verify before spending more time.
+
+  # ============================================================
+  # 7. OUT OF SCOPE - not German. Kept so you don't re-research them.
+  #    Delete if you're strictly Germany-only.
+  # ============================================================
 
   - name: "ANYbotics"
-    ats: lever
-    identifier: CHANGE_ME
+    ats: unverified
+    identifier: TODO
     enabled: false
+    # SWISS (Zurich, ETH spinoff) - not German. Legged inspection robots.
+
+  - name: "RoboTwin"
+    ats: unverified
+    identifier: TODO
+    enabled: false
+    # CZECH (Prague, RoboTwin s.r.o.) - not German. No-code robot teaching
+    # by demonstration; sells into DACH, hence the /de/ careers page.
+    # Searched for an ATS: nothing - likely a fully custom in-house form.
