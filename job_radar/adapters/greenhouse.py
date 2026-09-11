@@ -10,13 +10,19 @@ class GreenhouseAdapter(JobAdapter):
 
     Docs: https://developers.greenhouse.io/job-board.html
     Endpoint: GET https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs
+
+    EU-hosted boards (those whose careers page lives on
+    job-boards.eu.greenhouse.io or boards.eu.greenhouse.io) are served from a
+    separate EU host - set region: eu for those. Common for European
+    companies with EU data-residency requirements.
     """
 
     ats_name = "greenhouse"
-    BASE_URL = "https://boards-api.greenhouse.io/v1/boards/{token}/jobs"
+    BASE_URL = "https://boards-api.{host}/v1/boards/{token}/jobs"
 
     def fetch_jobs(self, company: CompanyConfig) -> list[RawJob]:
-        url = self.BASE_URL.format(token=company.identifier)
+        host = "eu.greenhouse.io" if company.region == "eu" else "greenhouse.io"
+        url = self.BASE_URL.format(host=host, token=company.identifier)
         resp = requests.get(url, timeout=20, headers={"User-Agent": "job-radar/0.1"})
         resp.raise_for_status()
         data = resp.json()
