@@ -211,7 +211,7 @@ exclude:
   - future employee
   - always looking
   - bachelor               # "Bachelor Mechatronik ab 01.09.2027" = a dual
-  - duales                 # study programme, not a graduate role
+  - duales studium                # study programme, not a graduate role
   - dual study                # Fraunhofer "Stud. Assistant" slipped past
                            # "student" because of the abbreviation
   - gruppenleitung         # group lead - too senior. NB: deliberately not
