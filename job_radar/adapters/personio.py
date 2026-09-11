@@ -37,6 +37,17 @@ class PersonioAdapter(JobAdapter):
             office = (pos.findtext("office") or "").strip()
             department = (pos.findtext("department") or "").strip()
 
+            # Personio nests the description as repeated
+            # <jobDescriptions><jobDescription><name/><value/> blocks
+            # (e.g. "Your tasks", "Your profile"). Concatenate all values.
+            parts = []
+            for jd in pos.iter("jobDescription"):
+                for tag in ("name", "value"):
+                    v = jd.findtext(tag)
+                    if v and v.strip():
+                        parts.append(v.strip())
+            description = "\n".join(parts) or None
+
             # Personio's XML feed doesn't always include a direct per-job URL,
             # so we build the standard job-detail URL pattern. Spot-check one
             # link per company after your first run to make sure it resolves.
@@ -51,6 +62,7 @@ class PersonioAdapter(JobAdapter):
                     location=office,
                     url=job_url,
                     department=department or None,
+                    description=description,
                 )
             )
         return jobs

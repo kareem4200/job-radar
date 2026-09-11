@@ -13,19 +13,9 @@ def run() -> int:
     keywords = load_keywords()
     now = datetime.datetime.utcnow().isoformat()
 
-    # If the store has no history at all, this is a first/baseline run: every
-    # currently-open job would otherwise look "new" and you'd get flooded
-    # with alerts for postings that have been up for months. So we record
-    # everything as seen but suppress alerts for this run only.
-    # if is_baseline_run:
-    #     print(
-    #         "[job-radar] No history found - this is a baseline run. "
-    #         "All currently open jobs will be recorded but NOT alerted on. "
-    #         "Future runs will only alert on jobs that are new since this baseline."
-    #     )
-
     new_count = 0
     alert_count = 0
+    baseline_companies: list[str] = []
     errors: list[str] = []
 
     for company in companies:
@@ -42,8 +32,16 @@ def run() -> int:
         except Exception as exc:  # one company's failure should never kill the whole run
             errors.append(f"{company.name} ({company.ats}): {exc}")
             continue
-        
+
+        # Baseline per COMPANY, not globally: the first time we see THIS
+        # company, every job it currently has open would otherwise look
+        # "new" - record them but don't alert. This is what lets you add
+        # a batch of 20 companies at once without a flood of alerts for
+        # postings that have been open for months. Companies you've seen
+        # before are unaffected.
         is_baseline_for_company = not storage.has_any_seen_for_company(company.name)
+        if is_baseline_for_company:
+            baseline_companies.append(company.name)
 
         for job in jobs:
             if not storage.is_new(job.fingerprint):
@@ -55,10 +53,24 @@ def run() -> int:
             if is_baseline_for_company:
                 continue
 
+            # Some ATSs (SmartRecruiters, Workday) don't return descriptions
+            # in their list endpoint. Fetch it now - but only for jobs that
+            # are genuinely new AND not part of a baseline sweep, so a
+            # 2,000-posting employer costs us zero extra requests per run
+            # when nothing has changed.
+            if job.description is None:
+                try:
+                    job.description = adapter.fetch_description(company, job)
+                except Exception as exc:
+                    errors.append(f"{company.name} description {job.external_id}: {exc}")
+
             score, matched = score_job(job, keywords)
             if score >= MIN_SCORE_TO_ALERT:
                 send_telegram_message(format_job_alert(job, score, matched))
                 alert_count += 1
+
+    if baseline_companies:
+        print(f"[job-radar] baseline (no alerts) for: {', '.join(baseline_companies)}")
 
     print(
         f"[job-radar] companies={len(companies)} new_jobs={new_count} "

@@ -72,6 +72,7 @@ class TeamtailorAdapter(JobAdapter):
                     url=link,
                     updated_at=(item.findtext("pubDate") or "").strip() or None,
                     department=None,
+                    description=(item.findtext("description") or "").strip() or None,
                 )
             )
         return jobs

@@ -32,6 +32,7 @@ PATTERNS = [
     ("greenhouse", re.compile(r"(?:boards|job-boards)\.greenhouse\.io/([a-zA-Z0-9_-]+)")),
     ("lever", re.compile(r"jobs\.lever\.co/([a-zA-Z0-9_-]+)")),
     ("personio", re.compile(r"([a-zA-Z0-9_-]+)\.jobs\.personio\.(?:de|com)")),
+    ("ashby", re.compile(r"jobs\.ashbyhq\.com/([a-zA-Z0-9_-]+)")),
     # Not implemented as adapters yet (Phase 2 candidates) - still worth flagging:
     ("smartrecruiters", re.compile(r"careers\.smartrecruiters\.com/([a-zA-Z0-9_-]+)")),
     ("workday", re.compile(r"([a-zA-Z0-9_-]+)\.wd\d?\.myworkdayjobs\.com")),

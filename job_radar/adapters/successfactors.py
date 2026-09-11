@@ -86,6 +86,12 @@ class SuccessFactorsAdapter(JobAdapter):
                     url=text(j, "jobUrl", "url", "applyUrl"),
                     updated_at=text(j, "postedDate", "lastModified") or None,
                     department=text(j, "department", "businessUnit") or None,
+                    # Whether the summary feed carries a description at all is
+                    # tenant-configurable; often it doesn't. Take it if present.
+                    description=text(
+                        j, "jobDescription", "description", "jobDescExternal"
+                    )
+                    or None,
                 )
             )
         return jobs

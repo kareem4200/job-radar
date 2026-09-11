@@ -14,6 +14,10 @@ class RawJob:
     url: str
     updated_at: Optional[str] = None  # ISO-ish string if the ATS provided one
     department: Optional[str] = None
+    # Full job description text (may be HTML). Populated either by the
+    # adapter's list call, or lazily via adapter.fetch_description() for
+    # ATSs whose list endpoint omits it (SmartRecruiters, Workday).
+    description: Optional[str] = None
 
     @property
     def fingerprint(self) -> str:

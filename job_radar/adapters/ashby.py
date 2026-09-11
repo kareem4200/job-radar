@@ -42,6 +42,7 @@ class AshbyAdapter(JobAdapter):
                     url=j.get("jobUrl") or j.get("applyUrl", ""),
                     updated_at=j.get("publishedAt"),
                     department=j.get("department") or j.get("team"),
+                    description=j.get("descriptionPlain") or j.get("descriptionHtml"),
                 )
             )
         return jobs

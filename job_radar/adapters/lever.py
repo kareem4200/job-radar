@@ -34,6 +34,20 @@ class LeverAdapter(JobAdapter):
                     location=categories.get("location", ""),
                     url=p.get("hostedUrl") or p.get("applyUrl", ""),
                     department=categories.get("team") or categories.get("department"),
+                    # descriptionPlain is the opening blurb; `lists` holds the
+                    # requirements/responsibilities bullets, where ROS2/C++
+                    # actually tend to appear. Combine both.
+                    description="\n".join(
+                        filter(
+                            None,
+                            [p.get("descriptionPlain") or p.get("description")]
+                            + [
+                                f"{l.get('text','')} {l.get('content','')}"
+                                for l in (p.get("lists") or [])
+                            ],
+                        )
+                    )
+                    or None,
                 )
             )
         return jobs

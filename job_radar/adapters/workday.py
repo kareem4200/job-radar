@@ -89,3 +89,29 @@ class WorkdayAdapter(JobAdapter):
             offset += self.PAGE_SIZE
 
         return jobs
+
+    def fetch_description(self, company: CompanyConfig, job: RawJob) -> str | None:
+        """One extra GET per NEW job only. Same undocumented-API caveat."""
+        try:
+            tenant, wd, site = company.identifier.split("/")
+        except ValueError:
+            return None
+
+        # job.url is "{base}/{site}{externalPath}"; the CXS detail endpoint
+        # is "{base}/wday/cxs/{tenant}/{site}{externalPath}".
+        base = f"https://{tenant}.{wd}.myworkdayjobs.com"
+        prefix = f"{base}/{site}"
+        if not job.url.startswith(prefix):
+            return None
+        external_path = job.url[len(prefix):]
+
+        try:
+            resp = requests.get(
+                f"{base}/wday/cxs/{tenant}/{site}{external_path}",
+                timeout=20,
+                headers={"User-Agent": "job-radar/0.1", "Accept": "application/json"},
+            )
+            resp.raise_for_status()
+            return (resp.json().get("jobPostingInfo") or {}).get("jobDescription")
+        except Exception:
+            return None

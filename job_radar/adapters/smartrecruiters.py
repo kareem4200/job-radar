@@ -68,3 +68,34 @@ class SmartRecruitersAdapter(JobAdapter):
             offset += self.PAGE_SIZE
 
         return jobs
+
+    def fetch_description(self, company: CompanyConfig, job: RawJob) -> str | None:
+        """One extra GET per NEW job only.
+
+        The postings LIST response carries no description, so we pull it from
+        the detail endpoint. main.py calls this solely for jobs not seen
+        before - fetching it for Bosch's full board every run would be
+        thousands of requests.
+        """
+        url = (
+            f"https://api.smartrecruiters.com/v1/companies/"
+            f"{company.identifier}/postings/{job.external_id}"
+        )
+        try:
+            resp = requests.get(
+                url, timeout=20, headers={"User-Agent": "job-radar/0.1"}
+            )
+            resp.raise_for_status()
+            ad = (resp.json().get("jobAd") or {}).get("sections") or {}
+            parts = []
+            for key in ("companyDescription", "jobDescription", "qualifications",
+                        "additionalInformation"):
+                block = ad.get(key) or {}
+                text = block.get("text")
+                if text:
+                    parts.append(text)
+            return "\n".join(parts) or None
+        except Exception:
+            # A missing description must never kill the run - the job still
+            # gets scored on its title.
+            return None
