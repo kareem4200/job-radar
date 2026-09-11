@@ -30,6 +30,20 @@ def send_telegram_message(text: str) -> None:
         print(f"[notifier] Telegram send FAILED: {resp.status_code} {resp.text}")
 
 
+def format_error_alert(errors: list[str]) -> str:
+    """Build the Telegram message for a run that hit adapter/description errors.
+
+    Truncated defensively: Telegram rejects a message over 4096 chars
+    outright, and a single flaky ATS can otherwise repeat the same error
+    across many companies in one run.
+    """
+    lines = "\n".join(html.escape(e) for e in errors)
+    text = f"⚠️ <b>job-radar: {len(errors)} error(s) this run</b>\n{lines}"
+    if len(text) > 4000:
+        text = text[:4000] + "\n… (truncated)"
+    return text
+
+
 def format_job_alert(job: RawJob, score: int, matched: list[str]) -> str:
     """Build the Telegram message.
 

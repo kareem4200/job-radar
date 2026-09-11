@@ -5,7 +5,7 @@ from job_radar import storage
 from job_radar.adapters import ADAPTERS
 from job_radar.config import MIN_SCORE_TO_ALERT, load_companies, load_keywords
 from job_radar.filters import score_job
-from job_radar.notifier import format_job_alert, send_telegram_message
+from job_radar.notifier import format_error_alert, format_job_alert, send_telegram_message
 
 
 def run() -> int:
@@ -78,6 +78,9 @@ def run() -> int:
     )
     for e in errors:
         print(f"[job-radar][error] {e}")
+
+    if errors:
+        send_telegram_message(format_error_alert(errors))
 
     # Always exit 0: a bad board token or a transient network error for one
     # company should be visible in the logs, not fail the whole scheduled run.
