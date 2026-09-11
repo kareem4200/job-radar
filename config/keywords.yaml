@@ -1,41 +1,273 @@
 # Keyword lists used by job_radar/filters.py.
 #
 # Matching is case-insensitive substring matching against "<title> <department>".
-# This is deliberately simple keyword matching, not ML — you can see exactly
-# why a job scored the way it did, and tune it in two minutes.
+# NOTE: the job DESCRIPTION is not searched. That's the single biggest
+# limitation here - a role whose title is generic but whose description is
+# full of ROS2 will be missed. Worth revisiting if you see that happening.
 #
-# Scoring: high_value = +20, medium_value = +8, exclude = -40 (see filters.py).
+# Scoring: high_value = +20, medium_value = +8, exclude = -40.
+#
+# >>> SET JOB_RADAR_MIN_SCORE=20 <<<
+# The default of 15 means TWO medium keywords (8+8=16) fire an alert with no
+# robotics content at all - e.g. "Embedded Software Engineer (C++)". Harmless
+# with 20-person startups; unusable now that Bosch Group, Continental and all
+# ~75 Fraunhofer institutes are in the feed. At 20, only a high_value hit can
+# trigger an alert, and medium_value just ranks what got through.
+#
+# Substring matching cuts both ways: "ros2" also matches inside other words,
+# and short tokens are risky - which is why "ros" alone is NOT in the list
+# (it would match "across", "microscopy", "Rostock").
 
 high_value:
-  - robotics
-  - robotik
-  - ros2
-  - ros 2
+  # --- English ---
+  - robot                  # ONE keyword covers robot, Robotic, Robotics,
+                           # Roboter, Robotik, Robotersteuerung, Roboter-
+                           # programmierer - "robot" is a substring of all.
+                           # Do NOT also add "robotic"/"robotik"/"roboter":
+                           # that triple-counted German titles (inflating
+                           # them past 60) while STILL missing plain English
+                           # "Robot Deployment Engineer", since "robotic" is
+                           # not a substring of "Robot".
   - autonomous systems
+  - autonomous driving
   - motion planning
+  - manipulation
   - slam
-  - perception engineer
+  - perception
   - computer vision
+  - machine vision
   - controls engineer
+  - control systems
   - embedded robotics
+  - reinforcement learning
+  - imitation learning
+  - humanoid
+  - mobile robot
+  - teleoperation
+  - ros2
+  - ros 2                  # bare "ros" is deliberately absent: it matches
+                           # "across", "Rostock", "microscopy"
+
+  # --- German (added for KUKA, Festo, SICK, DLR, Fraunhofer, Blickfeld) ---
+  - bildverarbeitung       # THE German term for computer vision - was missing
+  - autonome               # autonome Systeme / autonomes Fahren
+  - regelungstechnik
+  - bahnplanung            # trajectory planning
+  - mechatronik
 
 medium_value:
+  # Boosters, not triggers. On their own these should never alert.
   - c++
   - python
   - opencv
   - pytorch
+  - tensorflow
   - mechatronics
   - automatisierung
-  - regelungstechnik
   - embedded
-  - camera        
-  - sensor fusion 
-  - firmware      
+  - firmware
+  - sensor fusion
+  - lidar
+  - point cloud
+  - kalman
+  - real-time
+  - echtzeit
+  - simulation
+  - camera
+  - kamera
+  - sensorik
+  - entwicklungsingenieur  # generic German "development engineer"
+  - softwareentwickler
+  - wissenschaftliche      # Wissenschaftliche*r Mitarbeiter*in - the standard
+                           # DLR/Fraunhofer research-associate title, usually
+                           # open to a fresh MSc
 
 exclude:
-  - senior staff
-  - principal engineer
+  # --- Seniority: you're a new MSc grad ---
+  - senior
+  - principal
+  - staff engineer
+  - lead engineer
   - director
   - head of
+  - leiter                 # German "head of"
+  - teamleiter
+  - gruppenleiter
+  - abteilungsleiter
+  - vice president
+  - chief
   - 10+ years
-  - internship # remove this line if you also want internships
+  - 7+ years
+  - habilitation
+
+  # --- Non-engineering functions (floods in from the big employers) ---
+  - sales
+  - vertrieb
+  - account manager
+  - marketing
+  - recruit
+  - human resources
+  - personalreferent
+  - buchhaltung            # accounting
+  - einkauf                # purchasing
+  - controlling
+  - legal
+  - justiziar
+  - facility
+  - instandhaltung         # maintenance
+  - servicetechniker
+  - monteur
+  - lagerist               # warehouse
+  - produktionshelfer
+  - reinigung
+
+  # --- Entry formats you're past ---
+  - internship
+  - praktikum
+  - praktikant
+  - ausbildung             # vocational apprenticeship
+  - auszubildende
+  - duales studium
+  - schüler
+  - werkstudent            # REMOVE this line if you'd take a working-student
+                           # role - they're common at KUKA/Festo/Bosch and can
+                           # convert to full-time
+
+  # --- Student / thesis / vocational roles (added after a real run) ---
+  # DLR, Fraunhofer, Agile Robots and RobCo flood the feed with these and
+  # they scored very high (Fraunhofer "Masterarbeit - Reinforcement
+  # Learning" hit 84). You already HAVE an MSc - thesis and working-student
+  # positions are a step backwards.
+  - masterarbeit
+  - bachelorarbeit
+  - studienarbeit
+  - abschlussarbeit
+  - diplomarbeit
+  - studentische
+  - hilfskraft
+  - working student        # English form; "werkstudent" only catches German
+  - studien-
+  - student                # DLR posts "Student/in (w/m/d) - ..." which the
+                           # narrower "studentische" missed
+  - thesis                 # Fraunhofer's "Master Thesis: Class-aware
+                           # Pointcloud Filtering" alerted at 54
+  - praktikan
+  - intern                 # "Computer Vision Intern" alerted at 60.
+                           # CAVEAT: also matches "International"/"Internal".
+                           # Those titles are near-always sales/admin, which
+                           # this list already excludes, so the trade is fine.
+
+  # --- Vocational / technician roles ---
+  # "mechatronik" is a substring of "Mechatroniker", so assembly and
+  # electrician roles were scoring 48-60.
+  - mechatroniker
+  - elektroniker
+  - elektrokonstrukteur
+  - montagetechniker
+  - techniker
+  - technician             # English form
+  - monteur
+  - anlagenführer
+
+  # --- Non-engineering roles that slipped through on company boilerplate ---
+  # RobCo's "Accountant" alerted at 28 purely because their description
+  # mentions Robotik/Roboter/Automatisierung.
+  - accountant
+  - accounting             # "Accounting Lead" alerted at 28 on RobCo's
+                           # robotics boilerplate; "accountant" missed it
+  - business development
+  - customer success
+  - procurement
+  - supply chain
+  - office manager
+  - team assistant
+  - material controller
+  - project manager        # remove if you'd take technical PM roles
+  - product manager
+  - trainer                # Sereact's "Teleoperation Trainer" alerted twice:
+                           # it's a robot-operating role, not engineering
+  - team lead              # "Core Robotics Team Lead" - too senior
+  - engineering lead
+  - tech lead
+  - "stud."
+
+  # --- Placeholder / speculative postings, not real vacancies ---
+  # These are permanent "send us your CV" entries. They score well because
+  # the description is the company's general robotics pitch - sewts' "Future
+  # Employee of the Month" hit 44.
+  - unsolicited
+  - initiativbewerbung
+  - spontanbewerbung
+  - introduce yourself
+  - future employee
+  - always looking
+  - bachelor               # "Bachelor Mechatronik ab 01.09.2027" = a dual
+  - duales                 # study programme, not a graduate role
+  - dual study                # Fraunhofer "Stud. Assistant" slipped past
+                           # "student" because of the abbreviation
+  - gruppenleitung         # group lead - too senior. NB: deliberately not
+  - abteilungsleitung      # the bare word "leitung", which is a substring of
+  - teamleitung            # "Leitungssatz" (wire harness) at Continental/ZF
+  - bereichsleitung
+
+  # NOT excluded on purpose:
+  #   "doktorand" / "phd" - a funded PhD position at DLR or Fraunhofer is a
+  #   legitimate path for an MSc robotics grad, so these are left to score
+  #   normally. Add them here if you only want industry roles.
+
+
+# Locations to hard-reject, matched against the job's location field.
+# Several feeds (Bosch, Airbus, Festo, SICK, Schaeffler) are GLOBAL: the
+# first real run surfaced roles in Canton MA, Troy MI, Bangalore and
+# Toulouse. Jobs with an EMPTY location are always kept, because some feeds
+# (SuccessFactors RSS) simply don't publish one.
+# Add to this list whenever a foreign location slips through.
+location_exclude:
+  - ", us"
+  - " usa"
+  - "united states"
+  - ", ca)"
+  - ", tx"
+  - ", mi"
+  - ", ma"
+  - ", nc"
+  - ", cn"                 # Schaeffler's Taicang humanoid role alerted at 36
+  - ", pl"
+  - ", hu"
+  - ", ro"
+  - ", mx"
+  - ", br"
+  - ", in)"
+  - taicang
+  - budapest
+  - austin                 # RobCo "Robotics Support Engineer (Austin)"
+  - ", sk"
+  - slovakia
+  - kysuck
+  - ", ch,"                # Switzerland
+  - ", kr"
+  - seoul
+  - ", fr)"
+  - india
+  - bangalore
+  - pune
+  - china
+  - shanghai
+  - singapore
+  - japan
+  - korea
+  - brazil
+  - mexico
+  - hungary
+  - romania
+  - czech
+  - poland
+  - polska
+  - turkey
+  - toulouse
+  - france
+  - madrid
+  - spain
+  - italy
+  - united kingdom
+  - netherlands

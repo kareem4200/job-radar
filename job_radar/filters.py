@@ -14,7 +14,15 @@ HIGH_DESC = 8
 MEDIUM_TITLE = 8
 MEDIUM_DESC = 2
 EXCLUDE_TITLE = -40
-EXCLUDE_DESC = -12
+# Description-level excludes are DISABLED (0).
+# Real-run evidence: they fired on ordinary boilerplate rather than on
+# disqualifying facts - "report to the Head of Engineering" triggered
+# -head of~, "work with sales" triggered -sales~, an assistant role's perks
+# section triggered -facility~. That penalises good robotics jobs for
+# incidental words. Title excludes are already a hard reject (RULE 1), which
+# is where the real signal is. Raise this above 0 only if you find an
+# exclude term that reliably means "not for me" wherever it appears.
+EXCLUDE_DESC = 0
 
 # A single high-value word found ONLY in the description is worth this much
 # instead of HIGH_DESC - see RULE 2 in score_job().
@@ -57,6 +65,22 @@ def score_job(job: RawJob, keywords: dict) -> tuple[int, list[str]]:
     score = 0
     matched: list[str] = []
 
+    # RULE 0 - location hard reject.
+    # Bosch/Airbus/Festo/SICK/Schaeffler feeds are GLOBAL. The log showed
+    # roles in Canton MA, Troy MI, Bangalore and Toulouse scoring well.
+    # Cheapest possible fix: drop anything whose location names a country
+    # we don't want. Empty locations are KEPT - some feeds omit location
+    # entirely (SuccessFactors RSS), and dropping those would blind us.
+    # Scan BOTH the location field and the title. SuccessFactors' RSS feed
+    # carries no location field at all - it appends the city/country to the
+    # title instead, e.g. "Software Engineer II (Canton, MA, US, 02021)" or
+    # "Systems Eng. (Taicang, CN, 21540)". Checking only job.location let
+    # every foreign SuccessFactors role straight through.
+    loc_haystack = f"{job.location or ''} {job.title}".lower()
+    for bad in keywords.get("location_exclude", []):
+        if bad.lower() in loc_haystack:
+            return HARD_REJECT, [f"@{bad}"]
+
     # RULE 1 - an exclude term in the TITLE is a hard reject.
     # Previously this was just -40, which a keyword-rich description could
     # out-score: "Senior Robotics Engineer" scored +46 and alerted, even
@@ -77,7 +101,11 @@ def score_job(job: RawJob, keywords: dict) -> tuple[int, list[str]]:
                 title_hits.append(kw)
             elif desc_text and k in desc_text:
                 score += desc_weight
-                matched.append(f"{prefix}{kw}~")
+                # Skip zero-weight hits (description excludes are disabled)
+                # so the alert's "Matched:" line shows only what moved the
+                # score - otherwise every alert trails -intern~, -sales~ etc.
+                if desc_weight:
+                    matched.append(f"{prefix}{kw}~")
                 desc_hits.append(kw)
         return title_hits, desc_hits
 

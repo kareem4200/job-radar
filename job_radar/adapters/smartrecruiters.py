@@ -15,6 +15,12 @@ class SmartRecruitersAdapter(JobAdapter):
     careers.smartrecruiters.com/{id}  (e.g. "BoschGroup", "Continental").
     Case-sensitive.
 
+    region = OPTIONAL ISO country code (e.g. "de") passed straight to the
+    API as ?country=. Strongly recommended for huge employers: Bosch Group
+    returned 2,000 postings worldwide and hit our page cap, meaning we were
+    seeing an arbitrary truncated slice. Filtering server-side fixes both
+    the volume and the truncation.
+
     Unlike the other adapters this one PAGINATES (limit/offset, max 100 per
     page), so we loop until a short page comes back. Large employers like
     Bosch Group have thousands of postings worldwide, so we cap the number
@@ -32,9 +38,12 @@ class SmartRecruitersAdapter(JobAdapter):
         offset = 0
 
         for _ in range(self.MAX_PAGES):
+            params = {"limit": self.PAGE_SIZE, "offset": offset}
+            if company.region:
+                params["country"] = company.region
             resp = requests.get(
                 url,
-                params={"limit": self.PAGE_SIZE, "offset": offset},
+                params=params,
                 timeout=30,
                 headers={"User-Agent": "job-radar/0.1"},
             )

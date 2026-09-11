@@ -23,8 +23,16 @@ class PersonioAdapter(JobAdapter):
     ats_name = "personio"
 
     def fetch_jobs(self, company: CompanyConfig) -> list[RawJob]:
-        domain = "com" if company.region == "com" else "de"
-        url = f"https://{company.identifier}.jobs.personio.{domain}/xml?language=en"
+        # Most tenants are "{slug}.jobs.personio.de". A few use a
+        # non-standard host instead (e.g. "robotise-jobs.personio.de" -
+        # hyphen, not dot). If the identifier already contains a dot, treat
+        # it as a complete host and don't try to build one.
+        if "." in company.identifier:
+            host = company.identifier
+        else:
+            domain = "com" if company.region == "com" else "de"
+            host = f"{company.identifier}.jobs.personio.{domain}"
+        url = f"https://{host}/xml?language=en"
         resp = requests.get(url, timeout=20, headers={"User-Agent": "job-radar/0.1"})
         resp.raise_for_status()
 
@@ -51,7 +59,7 @@ class PersonioAdapter(JobAdapter):
             # Personio's XML feed doesn't always include a direct per-job URL,
             # so we build the standard job-detail URL pattern. Spot-check one
             # link per company after your first run to make sure it resolves.
-            job_url = f"https://{company.identifier}.jobs.personio.{domain}/job/{pos_id}?language=en"
+            job_url = f"https://{host}/job/{pos_id}?language=en"
 
             jobs.append(
                 RawJob(

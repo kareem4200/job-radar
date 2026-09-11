@@ -3,6 +3,7 @@
 # Fields:
 #   name       - display name used in alerts
 #   ats        - greenhouse | personio | lever | ashby | teamtailor
+#                | smartrecruiters | successfactors | workday
 #                | unsupported | unverified
 #   identifier - the ATS-specific id, or TODO
 #   region     - optional: personio -> de|com, lever -> eu, greenhouse -> eu
@@ -16,6 +17,13 @@
 #   ashby      -> board name in jobs.ashbyhq.com/<name>
 #   teamtailor -> FULL careers-site base URL, e.g. https://careers.acme.com
 #                 (Teamtailor tenants use custom domains, so a slug won't do)
+#   smartrecruiters -> company id in careers.smartrecruiters.com/<id>
+#                 (case-sensitive, e.g. BoschGroup, Continental)
+#   successfactors  -> the ?company= value on their apply URL
+#                 (e.g. dlrdeutsch); region = the full career host, e.g.
+#                 career5.successfactors.eu
+#   workday    -> "tenant/wd/site" from the careers URL, e.g.
+#                 trumpf/wd3/TRUMPF_Graduates_and_Professionals
 #
 # SECTIONS, ordered by what you actually DO with each:
 #   1. MONITORED       - verified + polled automatically. Nothing to do.
@@ -86,7 +94,7 @@ companies:
   - name: "NODE Robotics"
     ats: personio
     identifier: node-robotics-gmbh
-    enabled: true
+    enabled: false
     # AMR software for intralogistics.
     # NOTE: region unconfirmed. If this 404s, try region: com.
 
@@ -119,9 +127,11 @@ companies:
 
   - name: "Robotise"
     ats: personio
-    identifier: robotise
-    region: de
-    enabled: true
+    identifier: robotise-jobs.personio.de
+    enabled: false
+    # DISABLED: robotise.jobs.personio.de 404s and robotise-jobs.personio.de
+    # returns 401 Unauthorized - that board is private. No public feed
+    # exists. Apply speculatively by email instead: careers@robotise.eu
     # Munich - service robots (JEEVES hotel/service robot).
     # Board EMPTY. Also takes speculative applications: careers@robotise.eu
     # (Kerstin Goldschmidt).
@@ -217,7 +227,6 @@ companies:
   - name: "Helsing"
     ats: greenhouse
     identifier: helsing
-    region: eu
     enabled: true
     # Munich, ~900 people - defence AI, strike drones, underwater
     # surveillance.
@@ -227,7 +236,6 @@ companies:
   - name: "ARX Robotics"
     ats: greenhouse
     identifier: arxroboticsgmbh
-    region: eu
     enabled: true
     # Munich - autonomous UGVs for defence/first responders. Bundeswehr-Uni
     # spinoff. EU Greenhouse (job-boards.eu.greenhouse.io/arxroboticsgmbh).
@@ -236,7 +244,6 @@ companies:
   - name: "Agile Robots"
     ats: greenhouse
     identifier: agilerobotsse
-    region: eu
     enabled: true
     # Munich/Gilching - DLR spinoff, robot arms/systems, 2300+ employees.
     # EU Greenhouse (job-boards.eu.greenhouse.io/agilerobotsse).
@@ -253,6 +260,105 @@ companies:
     # Teamtailor identifier is the FULL careers-site base URL, not a slug.
     # >>> Was hiring Robot Software Engineer + Computer Vision & AI Engineer
     # (Darmstadt, remote within CET +/-2h). Strong fit - apply directly.
+
+  - name: "Bosch Rexroth (Bosch Group)"
+    ats: smartrecruiters
+    identifier: BoschGroup
+    region: de
+    enabled: true
+    # region: de filters server-side. Without it Bosch returns 2,000+ jobs
+    # worldwide AND hits our page cap, so the slice we saw was arbitrary.
+    # Lohr am Main - drives/controls/automation. Bosch runs SmartRecruiters
+    # group-wide (260,000+ associates), so this ONE board covers Bosch Rexroth
+    # plus every other Bosch entity. Expect high volume - your keyword filter
+    # is doing real work here.
+
+  - name: "Continental"
+    ats: smartrecruiters
+    identifier: Continental
+    region: de
+    enabled: true
+    # region: de - see the note on Bosch above.
+    # Hannover, ~200,000 people - automotive tech incl. autonomous mobility.
+    # Confirmed: apply links go to jobs.smartrecruiters.com/.../company/Continental
+    # Also high volume; relies on keyword filtering.
+
+  - name: "DLR"
+    ats: successfactors
+    identifier: https://jobs.dlr.de
+    enabled: true
+    # German Aerospace Center - research institute, not a company.
+    # THE most relevant large employer here for an MSc robotics profile:
+    # the Institute of Robotics and Mechatronics is the parent of Roboception,
+    # Agile Robots, tacterion, Blickfeld, Kinetik Space, Versatile Robotics.
+    # Company id read off their apply URL (career5.successfactors.eu/careers
+    # ?company=dlrdeutsch).
+
+  - name: "SICK AG"
+    ats: successfactors
+    identifier: https://jobs.sick.com
+    enabled: true
+    # Waldkirch, ~12,000 people - sensors/LiDAR, heavily used in robotics and
+    # autonomous vehicles.
+    # NOTE: the trailing capital P in the company id looks odd but is what
+    # their apply URL shows. If this returns nothing, try "sickag".
+
+  - name: "Fraunhofer IPA"
+    ats: successfactors
+    identifier: https://jobs.fraunhofer.de
+    enabled: true
+    # Stuttgart - applied robotics/automation research institute.
+    # NOTE: this company id covers ALL Fraunhofer institutes (jobs.fraunhofer.de
+    # is one shared portal), not just IPA - so expect roles from ~75 institutes
+    # across every field. Keyword filtering matters a lot here.
+
+  - name: "TRUMPF"
+    ats: workday
+    identifier: trumpf/wd3/TRUMPF_Graduates_and_Professionals
+    enabled: true
+    # Ditzingen - machine tools, laser tech, automation.
+    # UNDOCUMENTED Workday endpoint - see the warning in workday.py. If this
+    # breaks, that's expected maintenance, not a bug.
+
+  - name: "Airbus"
+    ats: workday
+    identifier: ag/wd3/Airbus
+    enabled: true
+    # Aerospace/defence, growing autonomy + robotics R&D.
+    # Tenant is "ag", NOT "airbus" - read off ag.wd3.myworkdayjobs.com/Airbus.
+    # UNDOCUMENTED Workday endpoint - same caveat as TRUMPF.
+
+  - name: "KUKA"
+    ats: successfactors
+    identifier: https://jobs.kuka.com
+    enabled: true
+    # Augsburg - THE German industrial robotics company. Highest-priority
+    # large employer on this list for a robotics profile.
+    # NOTE THE HOST: career55.sapsf.eu, not successfactors.eu. SAP serves
+    # some tenants from sapsf.eu - read it off the Apply link, don't assume.
+    # Public careers page is jobs.kuka.com (SuccessFactors CSB front-end).
+
+  - name: "Festo"
+    ats: successfactors
+    identifier: https://jobs.festo.com
+    enabled: true
+    # Esslingen - pneumatic/electric automation, Bionic Learning Network.
+    # Identifier is "festoagcokP" (Festo AG & Co. KG + production suffix).
+    # If it returns nothing, try "festoagcok".
+
+  - name: "Schaeffler / Vitesco"
+    ats: successfactors
+    identifier: https://jobs.schaeffler.com
+    enabled: true
+    # >>> READ THIS - the tenant id is NOT "schaeffler".
+    # The Apply link resolves to company=VitescoProd. Vitesco Technologies
+    # (spun out of Continental) merged into Schaeffler in Oct 2024, and this
+    # tenant is the former Vitesco instance.
+    # CONSEQUENCE: this feed may only cover ex-Vitesco entities, NOT all of
+    # Schaeffler's legacy business. If the roles that come through look
+    # exclusively powertrain/e-mobility, that's why - and a second Schaeffler
+    # tenant probably exists. Find it via an Apply link on a classic
+    # Schaeffler (bearings/industrial) posting on jobs.schaeffler.com.
 
   # ============================================================
   # 2. EMAIL / CUSTOM FORM - no ATS exists, nothing to poll.
@@ -482,27 +588,6 @@ companies:
   #    so the LinkedIn-lag problem matters much less.
   # ============================================================
 
-  - name: "KUKA"
-    ats: unsupported
-    identifier: TODO
-    enabled: false
-    # https://www.kuka.com/en-de/company/careers/vacancies
-    # Augsburg - the big one.
-
-  - name: "Bosch Rexroth"
-    ats: unsupported
-    identifier: TODO
-    enabled: false
-    # https://www.boschrexroth.com/en/de/jobs-and-career/
-    # Lohr am Main - drives/controls.
-
-  - name: "Festo"
-    ats: unsupported
-    identifier: TODO
-    enabled: false
-    # https://www.festo.com
-    # Esslingen - pneumatics/electric automation.
-
   - name: "Siemens"
     ats: unsupported
     identifier: TODO
@@ -510,17 +595,16 @@ companies:
     # https://www.siemens.com
     # Munich/Berlin - Digital Industries.
 
-  - name: "TRUMPF"
-    ats: unsupported
-    identifier: TODO
-    enabled: false
-    # https://www.trumpf.com
-    # Ditzingen - machine tools, laser.
-
   - name: "SCHUNK"
-    ats: unsupported
+    ats: unverified
     identifier: TODO
     enabled: false
+    # >>> STILL TO CHECK: https://schunk.com/de/de/karriere/stellenangebote
+    # Click Apply on any role and read the domain.
+    # WARNING: two different companies share the name. SCHUNK SE & Co. KG
+    # (Lauffen, grippers/end-effectors) is the robotics one you want.
+    # Schunk Group (Heuchelheim, carbon/ceramics) runs a separate ATS at
+    # career.schunk-group.com - do NOT use that one.
     # https://schunk.com
     # Lauffen - grippers/end-effectors.
 
@@ -552,40 +636,12 @@ companies:
     # https://www.igus.de
     # Cologne - motion plastics, low-cost robotics.
 
-  - name: "SICK AG"
-    ats: unsupported
-    identifier: TODO
-    enabled: false
-    # https://www.sick.com
-    # Waldkirch - sensors/LiDAR.
-
   - name: "ZF Friedrichshafen"
     ats: unsupported
     identifier: TODO
     enabled: false
     # https://www.zf.com
     # Drivetrain + autonomous mobility.
-
-  - name: "Continental"
-    ats: unsupported
-    identifier: TODO
-    enabled: false
-    # https://www.continental.com
-    # Automotive incl. autonomous mobility.
-
-  - name: "Schaeffler"
-    ats: unsupported
-    identifier: TODO
-    enabled: false
-    # https://www.schaeffler.com
-    # Motion technology.
-
-  - name: "Airbus"
-    ats: unsupported
-    identifier: TODO
-    enabled: false
-    # https://www.airbus.com
-    # Aerospace, autonomy R&D.
 
   - name: "PIA Automation"
     ats: unsupported
@@ -602,21 +658,6 @@ companies:
     # Linz, AUSTRIA (not Germany) - 2,100 people, industrial/banking/energy
     # automation. Has a Keba Deutschland GmbH subsidiary. Custom in-house
     # system (keba.com/.../details?job=NNNN).
-
-  - name: "DLR"
-    ats: unsupported
-    identifier: TODO
-    enabled: false
-    # https://www.dlr.de/en/careers
-    # Research institute, not a company. Parent of Roboception, Agile Robots,
-    # tacterion, Blickfeld, Kinetik Space, Versatile Robotics + more here.
-
-  - name: "Fraunhofer IPA"
-    ats: unsupported
-    identifier: TODO
-    enabled: false
-    # https://www.ipa.fraunhofer.de/en/career.html
-    # Stuttgart - applied robotics/automation research institute.
 
   # ============================================================
   # 5. STILL UNKNOWN - ATS not yet identified.
