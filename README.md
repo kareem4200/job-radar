@@ -1,194 +1,168 @@
 # job-radar
 
-Personal job-posting radar for robotics/engineering roles in Germany.
+Personal job-posting radar for robotics roles in Germany.
 
-Polls company ATS platforms (Greenhouse, Personio, Lever) directly using
-their public, unauthenticated job APIs, keeps track of what it's already
-seen, and pushes a Telegram message the moment a new job matches your
-keywords — instead of waiting for LinkedIn's daily/weekly alert digest.
+Polls 33 companies' applicant-tracking systems directly, using their public
+feeds, and pushes a Telegram message when a new role matches — instead of
+waiting on LinkedIn's daily digest.
 
-**Suggested GitHub repo name:** `job-radar` (or `robotics-job-radar` if you
-want it more self-descriptive). Keep it private if you don't want your
-target-company list public.
-
-This is **Phase 1**: a working end-to-end pipeline for ~1-3 ATS types and a
-handful of companies, running on a free GitHub Actions cron schedule, with no
-database server, no dashboard, and no hosting to manage. Prove it's useful
-before expanding it (see "Roadmap" at the bottom).
-
----
+LinkedIn is structurally behind: it scrapes ATS feeds on a cycle (every six
+hours for ATS partners) and then batches alerts into a once-a-day email. The
+job is live on the company's own careers page the moment a recruiter hits
+publish. This polls that source directly.
 
 ## How it works
 
 ```
-config/companies.yaml  →  ATS adapter (Greenhouse / Personio / Lever)
-                              ↓
-                        fetch current jobs
-                              ↓
-                    SQLite: is this job new?  →  no → skip
-                              ↓ yes
-                        keyword scoring (config/keywords.yaml)
-                              ↓
-                    score ≥ threshold?  →  no → record, don't alert
-                              ↓ yes
-                        Telegram message
+config/companies.yaml
+        │
+        ▼
+  ATS adapter  ──────────────  8 supported platforms
+        │
+        ▼
+  SQLite: seen this job id before?  ──▶ yes, skip
+        │ no
+        ▼
+  fetch description (lazily — only for new jobs)
+        │
+        ▼
+  score against config/keywords.yaml
+        │
+        ▼
+  score >= MIN_SCORE_TO_ALERT?  ──▶ no, record silently
+        │ yes
+        ▼
+  Telegram
 ```
 
-Runs on a GitHub Actions schedule (default: every 20 minutes, 06:00-22:59
-UTC, Mon-Sat). The "seen jobs" SQLite database is committed back to the repo
-after each run so state persists between runs without needing an external
-database.
+Runs on GitHub Actions every 20 min, 06:00–22:59 UTC, Mon–Sat. The seen-jobs
+SQLite file is committed back to the repo so state survives between runs.
 
-**First run behavior:** the first time it runs against a company, every
-currently-open job would otherwise look "new." To avoid a flood of alerts
-for postings that have been up for months, the very first run for an empty
-database records everything as seen but sends **no alerts**. Only jobs that
-appear *after* that baseline trigger a Telegram message.
+## Supported ATS platforms
 
----
+| ats | identifier | notes |
+|---|---|---|
+| `personio` | subdomain, or a full host if non-standard | `region: de`/`com` |
+| `greenhouse` | board token | no EU API host exists — token works globally |
+| `ashby` | board name | |
+| `lever` | site slug | `region: eu` for EU-hosted |
+| `teamtailor` | full careers-site base URL | reads `/jobs.rss` |
+| `smartrecruiters` | company id (case-sensitive) | `region: de` filters server-side — **use it**, big boards truncate |
+| `successfactors` | careers-site base URL | reads the undocumented `/sitemal.xml` RSS |
+| `workday` | `tenant/wd/site` | **undocumented endpoint**, expect occasional breakage |
 
-## Project layout
-
-```
-job-radar/
-├── README.md
-├── pyproject.toml              # poetry dependencies
-├── .env.example                # copy to .env for local runs
-├── .gitignore
-├── config/
-│   ├── companies.yaml          # target companies + which ATS they use
-│   └── keywords.yaml           # relevance keyword lists + weights
-├── job_radar/
-│   ├── __init__.py
-│   ├── config.py                # loads yaml config + env vars
-│   ├── models.py                 # RawJob dataclass + dedup fingerprint
-│   ├── storage.py                # SQLite seen-jobs store
-│   ├── filters.py                # keyword scoring
-│   ├── notifier.py               # Telegram message sending/formatting
-│   ├── main.py                   # orchestrator - the actual "job-radar" run
-│   ├── discover.py               # Phase-0 helper: detect ATS from career URLs
-│   └── adapters/
-│       ├── base.py                # adapter interface
-│       ├── greenhouse.py
-│       ├── personio.py
-│       └── lever.py
-├── tests/
-│   ├── test_filters.py
-│   └── test_models.py
-├── data/
-│   └── seen_jobs.sqlite3        # created + committed automatically by the Action
-└── .github/workflows/
-    └── job-radar.yml            # scheduled run
-```
-
----
+Not supportable: join.com and softgarden (auth-walled), Avature, and custom
+in-house systems. Those companies sit in `companies.yaml` disabled, grouped
+by what to do about them instead.
 
 ## Setup
 
-### 1. Install dependencies locally (optional, for testing before deploying)
-
 ```bash
 poetry install
-poetry run pytest        # should show 6 passed
+poetry run pytest                       # 10 tests
+cp .env.example .env                    # add your Telegram bot token + chat id
 ```
 
-### 2. Create a Telegram bot (a few minutes)
+Telegram: message @BotFather, `/newbot`, then message your bot once and read
+`chat.id` from `https://api.telegram.org/bot<TOKEN>/getUpdates`.
 
-1. Open Telegram, message **@BotFather**, send `/newbot`, follow the
-   prompts. You'll get a bot token like `123456789:AAExample...`.
-2. Message your new bot anything (e.g. "hi") so it can see your chat.
-3. Get your chat ID: visit
-   `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` in a browser after
-   step 2, and read `message.chat.id` from the JSON response.
-4. Put both values in `.env` (copy from `.env.example`) for local testing.
-
-### 3. Phase 0 — find real ATS identifiers for your target companies
-
-Don't guess board tokens. Put your target companies' career-page URLs in a
-text file and run the discovery helper:
+## Daily use
 
 ```bash
+# check every enabled company's feed — read-only, no alerts, no db writes
+poetry run python -m job_radar.healthcheck
+poetry run python -m job_radar.healthcheck --sample        # also score 3 jobs each
+poetry run python -m job_radar.healthcheck --ats personio  # narrow it down
+
+# the actual run
+poetry run python -m job_radar.main
+
+# identify an unknown company's ATS from its careers URL
 poetry run python -m job_radar.discover urls.txt
 ```
 
-It fetches each page and looks for known Greenhouse/Lever/Personio/
-SmartRecruiters/Workday URL patterns, and prints ready-to-paste YAML
-snippets. **Always verify the result** (open the resulting API/feed URL in a
-browser) before enabling a company — see the caveats in
-`job_radar/discover.py` about JS-rendered career pages not being detectable
-this way.
+`healthcheck --sample` is the tuning loop: it shows which jobs would alert
+and, crucially, **which keyword caused it**, so a bad alert tells you exactly
+what to fix.
 
-Paste verified entries into `config/companies.yaml` and set `enabled: true`.
+## Tuning
 
-### 4. Tune keywords
+Everything lives in `config/keywords.yaml`. Scoring is plain weighted
+substring matching — no ML — so any score is explainable in seconds.
 
-Edit `config/keywords.yaml`. Scoring is deliberately simple and transparent:
-`high_value` = +20, `medium_value` = +8, `exclude` = -40, matched against
-`"<title> <department>"`. The alert threshold (`MIN_SCORE_TO_ALERT`,
-default 15) lives in `job_radar/config.py` — override it via the
-`JOB_RADAR_MIN_SCORE` env var if you don't want to touch code.
+| where | high_value | medium_value | exclude |
+|---|---|---|---|
+| title/department | +20 | +8 | **hard reject** |
+| description | +8 | +2 | ignored |
 
-### 5. Run it once locally to seed the baseline
+Three rules that matter, all learned from real runs:
+
+- **An exclude term in the title is a hard reject**, not a penalty. A
+  keyword-rich description was out-scoring a −40 penalty, so "Senior Robotics
+  Engineer" alerted anyway.
+- **A lone high-value word found only in the description is discounted to 3.**
+  Big employers open every posting with "…a global leader in robotics…",
+  which was pushing unrelated backend roles over the line.
+- **Description-level excludes are disabled.** They fired on boilerplate
+  ("report to the Head of…", "work with sales") and penalised good jobs.
+
+`location_exclude` is checked against title *and* location, because several
+feeds are global and SuccessFactors bakes the city into the title rather than
+publishing a location field.
+
+Threshold: `MIN_SCORE_TO_ALERT` in `job_radar/config.py`, default 20,
+overridable with `JOB_RADAR_MIN_SCORE`. Swept against 21 real postings: 20
+kept 10/10 good roles with 0/11 bad. Re-sweep if you change keywords much.
 
 ```bash
-poetry run python -m job_radar.main
+JOB_RADAR_MIN_SCORE=0 poetry run python -m job_radar.main   # prove Telegram works
 ```
 
-You'll see a "baseline run" message and a summary line. No alerts will fire
-on this first run by design.
+## Deploying
 
-### 6. Deploy to GitHub Actions
+1. Push to GitHub (private repo — your target-company list is your research).
+2. **Settings → Secrets and variables → Actions**: add `TELEGRAM_BOT_TOKEN`
+   and `TELEGRAM_CHAT_ID`.
+3. **Settings → Actions → General → Workflow permissions → Read and write.**
+   New repos default to read-only, which makes the database commit fail 403
+   while everything else looks green. This is the usual silent failure.
+4. **Actions → Job Radar → Run workflow** — don't wait for cron.
+5. Confirm the log shows `errors=0` and that `data/seen_jobs.sqlite3` got a
+   fresh commit from `job-radar-bot`.
 
-```bash
-git init
-git add .
-git commit -m "Phase 1: job radar"
-git remote add origin git@github.com:<you>/job-radar.git
-git push -u origin main
+## Inspecting the database
+
+```sql
+SELECT company, COUNT(*) n FROM seen_jobs GROUP BY company ORDER BY n DESC;
+SELECT first_seen_at, company, title FROM seen_jobs ORDER BY first_seen_at DESC LIMIT 20;
+SELECT source, COUNT(*) FROM seen_jobs GROUP BY source;
 ```
 
-Then in the repo: **Settings → Secrets and variables → Actions**, add
-`TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` as repository secrets.
+Stores `fingerprint, company, source, title, location, url, first_seen_at` —
+not score or description. Use `healthcheck --sample` for scoring questions.
 
-The workflow (`.github/workflows/job-radar.yml`) will then run on its cron
-schedule automatically. You can also trigger it manually from the **Actions**
-tab (`workflow_dispatch`) to test it end-to-end before waiting for the cron.
+To force a test alert (a fresh baseline never alerts by design):
 
----
+```sql
+DELETE FROM seen_jobs WHERE fingerprint IN
+  (SELECT fingerprint FROM seen_jobs WHERE company='NEURA Robotics' LIMIT 5);
+```
+Deleting only *some* of a company's rows matters — delete all of them and the
+company re-baselines silently instead.
 
-## Design notes / things I'd want you to know before relying on this
+## Known limitations
 
-- **Only one seed company (`Wandelbots`, Personio) is a verified real
-  entry.** The others in `companies.yaml` (NEURA, KUKA, Franka, Agile
-  Robots, ANYbotics) are clearly-marked **placeholders** with
-  `identifier: CHANGE_ME` and `enabled: false` — I did not fabricate board
-  tokens for companies I couldn't verify. Run `discover.py` to fill these in
-  for real.
-- **The SQLite file is committed to git by the Action.** That's a
-  deliberate, low-effort persistence choice for a personal-scale tool (a
-  few hundred rows). It's not something you'd do for a multi-user system —
-  if this grows past Phase 1, move to GitHub Actions cache or an external
-  DB instead.
-- **Poll frequency and politeness:** Greenhouse doesn't publish a hard rate
-  limit but recommends against aggressive polling; every 15-30 minutes is
-  plenty for a personal tool and won't stress anyone's infrastructure.
-  Companies without a public ATS API (proprietary career pages) are **not**
-  handled by this Phase 1 — don't write custom HTML scrapers per company;
-  if you need that later, point a change-detection tool (e.g.
-  changedetection.io) at those specific pages instead of maintaining
-  bespoke parsers.
-- **Errors in one company never kill the whole run** — check the Action
-  logs for `[job-radar][error]` lines if a company stops returning jobs
-  (wrong token, ATS migration, etc.).
-- Only Greenhouse, Personio, and Lever are implemented. Workday and
-  SmartRecruiters are flagged by `discover.py` but have no adapter yet —
-  they're real APIs but noticeably more involved to integrate; that's a
-  Phase 2 candidate, not a Phase 1 one.
-
-## Roadmap (do NOT build this yet — see chat for the reasoning)
-
-- **Phase 2:** StepStone / Bundesagentur für Arbeit searches (both support
-  filtering by posting recency), expand to 50-75 companies, add
-  SmartRecruiters adapter.
-- **Phase 3, optional:** dashboard, application tracker, more companies —
-  only if Phase 1 is actually getting used and producing useful alerts.
+- **Baselining is per company.** The first time a company is seen, its whole
+  board is recorded with no alerts. That's what lets you enable 20 companies
+  at once without a flood. Silence after adding a company is correct.
+- **Airbus returns 500 = the page cap.** Workday has no simple country
+  filter, so its French roles bloat the database. They score below threshold,
+  so they don't alert.
+- **Some Personio tenants publish no descriptions** (cellumation, Unchained,
+  fruitcore), so those fall back to title-only scoring.
+- **The seen-jobs DB is committed on every change.** Git can't delta binaries,
+  so history grows. If the repo gets heavy, lower `MAX_PAGES` in the Workday
+  and SmartRecruiters adapters or move the DB to the Actions cache.
+- **`discover.py` is weak.** It does a plain HTTP GET and greps for ATS URL
+  patterns, so it misses JS-rendered careers pages — which is most of them.
+  Clicking Apply on a real posting and reading the domain is more reliable.
