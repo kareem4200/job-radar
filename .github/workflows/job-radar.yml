@@ -2,11 +2,8 @@ name: Job Radar
 
 on:
   schedule:
-    # Every 20 minutes, 06:00-22:59 UTC, Monday-Saturday.
-    # GitHub Actions cron is best-effort and can be delayed under load -
-    # treat this as "roughly every 20 min", not a hard guarantee.
-    - cron: "7 6-22 * * 1-6"
-  workflow_dispatch: {} # lets you trigger a run manually from the Actions tab
+    - cron: "23 5-21/2 * * 1-6"
+  workflow_dispatch: {}
 
 concurrency:
   group: job-radar
