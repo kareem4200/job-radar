@@ -18,6 +18,7 @@ pytest = "^8.0"
 [tool.poetry.scripts]
 job-radar = "job_radar.main:main"
 job-radar-discover = "job_radar.discover:main"
+job-radar-healthcheck = "job_radar.healthcheck:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
