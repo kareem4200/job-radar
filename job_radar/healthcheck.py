@@ -16,7 +16,7 @@ import sys
 import time
 
 from job_radar.adapters import ADAPTERS
-from job_radar.config import load_companies, load_keywords
+from job_radar.config import MIN_SCORE_TO_ALERT, load_companies, load_keywords
 from job_radar.filters import score_job
 
 
@@ -39,7 +39,8 @@ def main() -> None:
 
     keywords = load_keywords() if args.sample else {}
 
-    print(f"Checking {len(companies)} enabled companies\n")
+    print(f"Checking {len(companies)} enabled companies")
+    print(f"Alert threshold: {MIN_SCORE_TO_ALERT} (JOB_RADAR_MIN_SCORE)\n")
     print(f"{'':<4}{'COMPANY':<30}{'ATS':<16}{'JOBS':>6}  {'TIME':>7}  NOTE")
     print("-" * 96)
 
@@ -85,7 +86,7 @@ def main() -> None:
                 jobs, key=lambda x: score_job(x, keywords)[0], reverse=True
             )[:3]:
                 sc, matched = score_job(j, keywords)
-                flag = "ALERT" if sc >= 25 else "     "
+                flag = "ALERT" if sc >= MIN_SCORE_TO_ALERT else "     "
                 print(f"        {flag} {sc:>5}  {j.title[:52]:<52} {','.join(matched[:4])}")
 
     print("-" * 96)

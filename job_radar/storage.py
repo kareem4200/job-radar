@@ -25,14 +25,15 @@ def _connect() -> sqlite3.Connection:
 
 
 def has_any_seen() -> bool:
-    """True if the store already has history. Used to detect a first/baseline run."""
+    """True if the store already has ANY history at all (any company)."""
     conn = _connect()
     try:
         cur = conn.execute("SELECT 1 FROM seen_jobs LIMIT 1")
         return cur.fetchone() is not None
     finally:
         conn.close()
-        
+
+
 def has_any_seen_for_company(company: str) -> bool:
     """True if THIS company has history. Used to baseline newly-enabled
     companies individually, so enabling 20 new companies at once doesn't
