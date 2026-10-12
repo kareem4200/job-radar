@@ -120,7 +120,7 @@ companies:
     ats: personio
     identifier: german-bionic
     region: de
-    enabled: true
+    enabled: false
     # Augsburg - connected industrial exoskeletons / wearable robotics.
     # Board EMPTY when checked - empty <workzag-jobs/> confirms the id is
     # right, they just aren't hiring right now.
