@@ -142,7 +142,7 @@ companies:
     ats: personio
     identifier: daedalus
     region: de
-    enabled: true
+    enabled: false
     # Munich - AI-driven precision manufacturing (CNC), software-defined
     # factories. $40M from Khosla, Addition, NGP, Y Combinator. Team ex-
     # OpenAI,
